@@ -4,31 +4,48 @@
 
 /* Função para buscar produtos pelo idproduto */
 
-int buscaProdutos(idproduto *produtos, int total, const char *codigo){
-    //Contador e o i; lógica for para uma iteração deterministica
-    for(int i = 0; i <= total; i++) {
-        if(strcmp(produtos[i].id_codProdutos, codigo) == 0){
-        return i; /* Volta o valor da iteração */
+/* Arvore binária */
+typedef struct busca{
+    idproduto produto;
+    struct busca *esquerda;
+    struct busca *direita;
+} busca;
+
+busca* buscaProduto(busca *raiz, const char *codigo){
+    while(raiz != NULL){
+        int cmp = strcmp(codigo, raiz->produto.id_codProduto);
+        if(cmp == 0){
+            printf("Produto encontrado\n");
+        return raiz;
+        }
+        else if(cmp < 0){
+            raiz = raiz->esquerda;
+        }
+        else{
+            raiz = raiz->direita;
         }
     }
-    return -1; /* Se o valor não e incontrado volta -1  */
+    return NULL;
 }
 
 /* Funçaõ para atulizar produtos */
 
-void atulizacaoProduto(idprodutos *produtos, int total, const char *codigo){
-    int buscaIndice = buscarProdutos(produtos, total, codigo); /* Armazena o indice do produto encontrado com base no código */
-        if(buscaIndice == -1){
-            printf("Código/Produto '%s' não encontrado... \n", codigo);
-        }
+void atulizacaoProduto(busca *raiz, const char *codigo){
+    busca *produtoNode = buscaProduto(raiz, codigo); /* Retorna o ponteiro para nó ou NULL */
+    /* If para verificar se o valor for = NULL, não consiguira encontrar */
+    if(produtoNode == NULL){
+    printf("Produto do código '%s', não foi encontrado\n", codigo);  
+    return;       
+    }
+
     /* Bloco para digitar/atulizar */
-    printf("Atualizar produto do código '%s'...:  ", produtos[buscaIndice].nomeProduto);
+    printf("Atualizar produto do código '%s'...:  ", produtoNode->produto.nomeProduto);
     printf("Atulizar a quantidade em estoque: ");
-        scanf("%d", &produtos[buscaIndice].quantidadeStock);
+        scanf("%d", &produtoNode->produto.quantidadeStock);
     getchar(); //Limpar o buffer
 
     printf("Digite o valor do produto");
-        scanf("%f", &produtos[buscaIndice].valorProduto);
+        scanf("%f", &produtoNode->produto.valorProduto);
     getchar(); //Limpar o buffer
 
     printf("Produtos atualizado com sucesso... \n");
@@ -36,49 +53,75 @@ void atulizacaoProduto(idprodutos *produtos, int total, const char *codigo){
 }
 
 /* Função para listar todos os produtos */
-void listaProdutos(idprodutos *produtos, int total){
-    printf("\n--- Produtos em estoque ---\n");
-    for(int i = 0; i <= total; i++){
-        printf("Código do produto...: %s", produtos[i].id_CodProduto);
-        printf("Nome do produto: %s\n", produtos[i].nomeProduto);
-        printf("Quantidade em stock: %d", produtos[i].quantidadesStock);
-        printf("Valor do produto..: %f", produtos[i].valorProduto);
-        printf("\n----------------------\n");
-    }
+void listaProdutos(busca *raiz){
+    if(raiz != NULL){
+        listaProdutos(raiz->esquerda);
+        printf("Código: %s |Nome: %s|Quantidade: %d|Preço: %.2f\n", 
+        raiz->produto.id_codProduto, raiz->produto.nomeProduto,
+        raiz->produto.quantidadeStock, raiz->produto.valorProduto);
+        listaProdutos(raiz->direita);
 
+    }
 }
 
 /* Função para adicionar produto */
 
-int adicionarProduto(idprodutos *produtos, int total, int maxProdutos){
-    /* Se for maior que maxProdutos não tera como alocar um novo produto  */
-    if(total > maxProdutos){
-        printf("Erro ao adicionar produtos...  ");
-        return total;
+busca* inserirProduto(busca *raiz, idproduto novoProduto){
+    if(raiz == NULL){
+    /* Cria um novo nó na arvore se chegado */
+    busca *novoNo = (busca*)malloc(sizeof(busca));
+    if(novoNo == NULL){
+        fprintf(stderr,"Erro ao alocar memória para o novo produto\n");
+        return raiz;
     }
-    printf("\n--- Adicionar produto ---\n");
-    cadastroProdutos(produtos[total]); /* Chamada da função "cadastroProdutos" para adicionar dados */
-    printf("Adicionado produtos com sucesso");
-
-    return total +1;
+    novoNo->produto = novoProduto;
+    novoNo->esquerda = novoNo->direita = NULL;
+    return novoNo;
+    }
+    /* Decide onde o produto vai ser guardado, levando em consideração a lógica de condição */
+    if(strcmp(novoProduto.id_codProduto, raiz->produto.id_codProduto) < 0){
+        raiz->esquerda = inserirProduto(raiz->esquerda, novoProduto);
+    }
+    else{
+        raiz->direita = inserirProduto(raiz->direita, novoProduto);
+    }
+    return raiz;
 }
 
 /* Função para remover produtos */
 
-int removerProduto(idprodutos *produtos, int total, const char *codigo){
-    /* Se for maior que maxProdutos não tera como alocar um novo produto  */
-    int buscaIndice = buscarProdutos(produtos, total, codigo); /* Armazena dados, para fazer a chamada do que for remover */
-    /* -1 para fazer a busca do indice a esquerda  */
-    if(buscaIndice == -1){
-        printf("Erro ao remover produto cód '%s' do stock...  ");
-        return total;
+busca* removerProduto(busca *raiz, const char *codigo){
+   if (raiz == NULL) return NULL;
+   
+   if(strcmp(codigo, raiz->produto.cod_idProduto) < 0){
+    raiz->esquerda = removerProduto(raiz->esquerda, codigo);
+   }
+   else if(strcmp(codigo, raiz->produto.id_codProduto) > 0){
+    raiz->direita = removerProduto(raiz->direita, codigo);
+   }
+   else{
+    /* Caso não encontre nenhum valor */
+    if(raiz->esquerda == NULL){
+        busca *temp = raiz->direita;
+        free(raiz);
+        return temp;
     }
-    /* Remove produto com deslocamento a esquerda */
-    for(int i = buscaIndice; i <= total -1; i++){
-        produtos[i] = produtos[i + 1];//i e usado para iteração, também e usado + 1 para não iterar sobre aqueles alocado a esquerda
+    else if(raiz->direita == NULL){
+        busca *temp = raiz->esquerda;
+        free(raiz);
+        return temp;
     }
-    printf("Produto do cód '%s' removido com sucesso");
-    return total +1; /* Incremento o total de produto e retorna */
+    /* buscar dados na sub árvore */
+    busca *temp = raiz->direita;
+    while(temp && temp->esquerda != NULL){
+        temp = temp->esquerda;
+    }
+    /* Substituir produtos */
+    raiz->produto = temp->produto;
+    /* Remover o in-order */
+    raiz->direita = removerProduto(raiz->produto, temp->produto.id_codProduto);
+   }
+   return raiz;
 }
 
 
